@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Controllers\TodoController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +17,13 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+Route::get('/todo', [TodoController::class, 'index'])->name('Todo');
+Route::post('/todo', [TodoController::class, 'store']);
+
+Route::get('todo/{id}/edit', [TodoController::class , 'edit'])->name('todo.edit');
+Route::put('todo/{id}', [TodoController::class , 'update'])->name('update');
+
+Route::delete('todo/{id}', [TodoController::class , 'destroy'])->name('destroy'); // Aangepaste route
 
 Route::get('/dashboard', function () {
     return view('dashboard');
