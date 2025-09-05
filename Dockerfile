@@ -52,11 +52,14 @@ RUN npm install && npm run build
 # Database seeden (alleen nodig voor testen / dev, niet in productie)
 # RUN touch database/database.sqlite \
 #     && php artisan migrate:fresh --seed
+RUN touch /var/www/html/database/database.sqlite
+RUN php artisan migrate:fresh --seed
 
 # Zet rechten goed
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 775 /var/www/html/storage && \
     chmod -R 775 /var/www/html/bootstrap/cache
+
 
 EXPOSE 80
 CMD ["apache2-foreground"]
