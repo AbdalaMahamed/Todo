@@ -37,9 +37,6 @@ RUN composer install --no-scripts --no-autoloader --no-interaction
 # Kopieer alle bestanden (exclude onnodige bestanden via .dockerignore)
 COPY . .
 
-# Debug listing to check if .env.example exists
-# RUN ls -la /var/www/html
-
 # Environment voorbereiden
 RUN cp .env.example .env && \
     composer dump-autoload --optimize && \
@@ -49,17 +46,24 @@ RUN cp .env.example .env && \
 # Installeer NPM dependencies en bouw assets
 RUN npm install && npm run build
 
-# Database seeden (alleen nodig voor testen / dev, niet in productie)
-# RUN touch database/database.sqlite \
-#     && php artisan migrate:fresh --seed
+# Zorg dat database folder en SQLite file schrijfbaar zijn
+RUN mkdir -p /var/www/html/database && \
+    chown -R www-data:www-data /var/www/html/database && \
+    chmod -R 775 /var/www/html/database
+
+# Maak SQLite file aan als www-data
+USER www-data
 RUN touch /var/www/html/database/database.sqlite
+USER root
+
+# Voer migraties uit
 RUN php artisan migrate:fresh --seed
 
-# Zet rechten goed
+# Zet rechten goed voor storage en bootstrap/cache
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 775 /var/www/html/storage && \
     chmod -R 775 /var/www/html/bootstrap/cache
 
-
 EXPOSE 80
+
 CMD ["apache2-foreground"]
