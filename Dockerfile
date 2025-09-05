@@ -1,62 +1,43 @@
-# Gebruik een officiële Apache + PHP base image
+# Officiële PHP + Apache image
 FROM php:8.2-apache
 
-# Installeer systeemafhankelijkheden en tools
+# Systeem dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    nodejs \
-    npm && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    git curl libpng-dev libonig-dev libxml2-dev zip unzip nodejs npm \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Installeer PHP extensies
+# PHP extensies
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# Installeer Composer
+# Composer installeren
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Zet Apache configuratie
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf && \
-    a2enmod rewrite
+# Apache configuratie: public folder
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf \
+    && a2enmod rewrite
 
-# Werkdirectory instellen
 WORKDIR /var/www/html
 
-# Kopieer eerst alleen de composer bestanden voor efficiënte caching
+# Composer dependencies caching
 COPY composer.json composer.lock ./
-
-# Installeer PHP dependencies (zonder scripts om .env issues te voorkomen)
 RUN composer install --no-scripts --no-autoloader --no-interaction
 
-# Kopieer alle bestanden (exclude onnodige bestanden via .dockerignore)
+# Kopieer alle bestanden
 COPY . .
 
-# Debug listing to check if .env.example exists
-# RUN ls -la /var/www/html
+# .env instellen en artisan key
+RUN if [ -f ".env.example" ]; then cp .env.example .env; fi \
+    && composer dump-autoload --optimize \
+    && php artisan key:generate \
+    && php artisan config:cache
 
-# Environment voorbereiden
-RUN cp .env.example .env && \
-    composer dump-autoload --optimize && \
-    php artisan key:generate && \
-    php artisan config:cache
-
-# Installeer NPM dependencies en bouw assets
+# NPM dependencies en build
 RUN npm install && npm run build
 
-# Database seeden (alleen nodig voor testen / dev, niet in productie)
-# RUN touch database/database.sqlite \
-#     && php artisan migrate:fresh --seed
-
-# Zet rechten goed
-RUN chown -R www-data:www-data /var/www/html && \
-    chmod -R 775 /var/www/html/storage && \
-    chmod -R 775 /var/www/html/bootstrap/cache
+# Rechten instellen
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache
 
 EXPOSE 80
 CMD ["apache2-foreground"]
